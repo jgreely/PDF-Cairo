@@ -1291,19 +1291,27 @@ sub _getpath {
 
 =over 4
 
-=item height => $height
-
-=item width => $width
+=item clip => [ $width, $height]
 
 =item dx => $offset_x
 
 =item dy => $offset_y
 
+=item scale => $scale
+
+=item size => [ $width, $height ]
+
+=item x_scale => $scale
+
+=item y_scale => $scale
+
+=item rotate => $degrees
+
 =back
 
 Places the recording object $recording with its lower-left corner at
-($x,$y). If $width and $height are provided, the recording is clipped
-to that size before rendering. If $dx or $dy is provided, the
+($x,$y). If the clip argument is provided, the recording is clipped
+to that width/height before rendering. If $dx or $dy is provided, the
 recording will be offset by those amounts before rendering. This can
 be used to do things like tile a large image across multiple pages.
 
@@ -1311,19 +1319,45 @@ be used to do things like tile a large image across multiple pages.
 
 sub place {
 	my $self = shift;
+	croak "PDF::Cairo::place: first argument must be a recording/svg/image"
+		unless defined $_[0];
+	# pass raster images to showimage
+	return $self->showimage(@_)
+		if ref $_[0] eq 'Cairo::ImageSurface';
 	my $recording = shift;
 	croak "PDF:Cairo::place: first argument must be a recording object"
-		unless defined $recording
-			and ref $recording->{surface} eq 'Cairo::RecordingSurface';
+		unless ref $recording->{surface} eq 'Cairo::RecordingSurface';
 	my $x = shift || 0;
 	my $y = shift || 0;
 	my %options = @_;
 	my $dx = defined $options{dx} ? $options{dx} : 0;
 	my $dy = defined $options{dy} ? $options{dy} : 0;
+	my ($x_scale, $y_scale) = (1, 1);
+	if ($options{scale}) {
+		$x_scale = $options{scale};
+		$y_scale = $options{scale};
+	}
+	if ($options{x_scale}) {
+		$x_scale = $options{x_scale};
+	}
+	if ($options{y_scale}) {
+		$y_scale = $options{y_scale};
+	}
+	if ($options{size}) {
+		my ($w, $h) = @{$options{size}};
+		$x_scale = $w / $recording->{w};
+		$y_scale = $h / $recording->{h};
+	}
 	$self->save;
 	$self->translate($x, $y) if $x or $y;
-	if (defined $options{width} and defined $options{height}) {
-		$self->rect(0, 0, $options{width}, $options{height});
+	if (defined $options{rotate}) {
+		$self->rotate($options{rotate});
+	}
+	if ($x_scale != 1 or $y_scale != 1) {
+		$self->scale($x_scale, $y_scale);
+	}
+	if (defined $options{clip}) {
+		$self->rect(0, 0, @{$options{clip}});
 		$self->clip;
 	}
 	$recording->{surface}->flush;
