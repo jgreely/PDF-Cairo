@@ -1,4 +1,5 @@
 Changes
+data/treasure-map.svg
 data/v04image002.png
 examples/box-slice.pl
 examples/calendar.pl		This example requires the DateTime module.
@@ -9,6 +10,7 @@ examples/isopad.pl
 examples/kanjigrid.pl
 examples/layout.pl
 examples/polygon.pl
+examples/svg.pl
 examples/tategaki.pl
 examples/textpath.pl
 examples/yoko-ruled.pl
@@ -19,6 +21,7 @@ lib/PDF/Cairo/Box.pm
 lib/PDF/Cairo/Font.pm
 lib/PDF/Cairo/Colors.pm
 lib/PDF/Cairo/Layout.pm
+lib/PDF/Cairo/Util.pm
 lib/PDF/Cairo.pm
 LICENSE
 Makefile.PL

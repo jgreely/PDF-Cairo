@@ -19,6 +19,7 @@ my %WriteMakefileArgs = (
     PREREQ_PM => {
 		'Cairo'				=> '1.106',
 		'Font::FreeType'	=> '0.12',
+		'Image::CairoSVG'	=> '0.09',
 		'Module::Path'		=> '0.19',
 		'Pango'				=> '1.227',
     },

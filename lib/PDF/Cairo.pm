@@ -8,11 +8,15 @@ package PDF::Cairo;
 # $self->{_dirtypage}=1; this is used by the PDF::API2 compatibility
 # page() method to avoid creating extra blank pages.
 
+use 5.016;
 use utf8;
 use strict;
 use warnings;
 use Carp;
 use Cairo;
+use Image::CairoSVG;
+use Module::Path 'module_path';
+use PDF::Cairo::Util;
 
 our $VERSION = "1.00";
 $VERSION = eval $VERSION;
@@ -70,7 +74,6 @@ our (
 	@EXPORT,
 	@EXPORT_OK,
 	%EXPORT_TAGS,
-	%paper,
 	%rgb,
 	$HAS_IMAGEMAGICK,
 );
@@ -82,32 +85,13 @@ BEGIN {
 	@EXPORT_OK = qw(in mm cm paper_size regular_polygon);
 	%EXPORT_TAGS = (all => \@EXPORT_OK);
 
-	use Module::Path 'module_path';
-	%paper = ();
-	my $file = module_path('PDF::Cairo') || "PDF/Cairo/papers.txt";
-	$file =~ s/\.pm$/\/papers.txt/;
-	open(In,$file) or
-		die "$0: PDF::Cairo::papers.txt ($file): $!\n";
-	while (<In>) {
-		next if /^\s*$|^\s*#/;
-		chomp;
-		my ($name,$w,$h,$notes);
-		tr/A-Z/a-z/;
-		if (/^([^ =]+)\s*=\s*(.*)$/) {
-			$paper{$1} = $2;
-		}else{
-			($name,$w,$h,$notes) = split(' ');
-			$paper{$name} = { w=>$w, h=>$h, notes=>$notes};
-		}
-	}
-	CORE::close(In);
 	%rgb = ();
 	#TODO: allow loading NBS/XKCD/Resene rgb.txt
-	$file = module_path('PDF::Cairo') || "PDF/Cairo/rgb.txt";
+	my $file = module_path('PDF::Cairo') || "PDF/Cairo/rgb.txt";
 	$file =~ s/\.pm$/\/rgb.txt/;
-	open(In,$file) or
+	open(my $In, "<", $file) or
 		die "$0: PDF::Cairo::rgb.txt ($file): $!\n";
-	while (<In>) {
+	while (<$In>) {
 		next if /^\s*$|^\s[#!]/;
 		chomp;
 		tr/A-Z/a-z/;
@@ -117,7 +101,7 @@ BEGIN {
 		$rgb{$name}->{dec} = [ $r, $g, $b ];
 		$rgb{$name}->{float} = [ $r / 255, $g / 255, $b / 255 ];
 	}
-	CORE::close(In);
+	CORE::close($In);
 
 	# If convert is in the path, use it to support non-PNG image
 	# formats in loadimage().
@@ -181,10 +165,15 @@ sub new {
 #	}else{
 		$self->{_streamdata} = '';
 		if ($options{_recording}) {
+			my $bbox = {
+				x => 0,
+				y => 0,
+				width => $self->{w},
+				height => $self->{h}
+			};
+			# unlimited recording needed for SVG support
 			$self->{surface} = Cairo::RecordingSurface->create(
-				"color-alpha",
-				{x => 0, y => 0, width => $self->{w}, height => $self->{h}},
-			);
+				"color-alpha", $options{_unlimited} ? undef : $bbox);
 		}else{
 			$self->{surface} = Cairo::PdfSurface->create_for_stream(
 				sub {
@@ -202,8 +191,9 @@ sub new {
 	# PDF::API2::Lite doesn't directly support clip()/endpath(),
 	# so I have scripts that call them through the reference to
 	# the underlying PDF::API2 object. This is unnecessary in new
-	# code.
+	# code. ("hybrid" was replaced with "gfx" in early 2005...)
 	#
+	$self->{hybrid} = $self;
 	$self->{gfx} = $self;
 
 	bless($self, $class);
@@ -246,10 +236,10 @@ sub write {
 	if ($self->{_is_stream}) {
 		$self->{surface}->flush;
 		$self->{surface}->finish;
-		open(Out, '>:raw', $filename)
+		open(my $Out, '>:raw', $filename)
 			or croak "PDF::Cairo::write($filename): $!";
-		print Out $self->{_streamdata};
-		CORE::close(Out);
+		print $Out $self->{_streamdata};
+		CORE::close($Out);
 	}
 }
 
@@ -638,6 +628,9 @@ path instead of the continuation of an existing path.
 
 =cut
 
+# Note: angles increase *clockwise* in Cairo space, but
+# counter-clockwise in PDF space.
+#
 sub arc {
 	my $self = shift;
 	my ($x, $y, $a, $b, $alpha, $beta, $move) = @_;
@@ -646,9 +639,9 @@ sub arc {
 	$self->{context}->translate($x, -1 * $y);
 	$self->scale(1, $b/$a); 
 	if ($alpha > $beta) {
-		$self->{context}->arc(0, 0, $a, _rad($alpha), _rad($beta));
+		$self->{context}->arc(0, 0, $a, -_rad($alpha), -_rad($beta));
 	}else{
-		$self->{context}->arc_negative(0, 0, $a, _rad($alpha), _rad($beta));
+		$self->{context}->arc_negative(0, 0, $a, -_rad($alpha), -_rad($beta));
 	}
 	$self->{context}->set_matrix($tmp);
 	return $self;
@@ -821,7 +814,7 @@ sub rel_rect {
 		$self->rect($dx, $dy, $w, $h);
 		$self->{context}->set_matrix($tmp);
 	}else{
-		carp "PDF::Cairo::rel_rect: no current point";
+		croak "PDF::Cairo::rel_rect: no current point";
 	}
 	return $self;
 }
@@ -832,25 +825,12 @@ sub rel_rect {
 
 =over 4
 
-=item B<stroke>
+=item B<fill> [evenodd => 1], [preserve => 1]
 
-Strokes the current path with the current linewidth and strokecolor.
-
-=cut
-
-sub stroke {
-	my $self = shift;
-	$self->{context}->set_source_rgb(_color($self->{_stroke}));
-	$self->{context}->stroke;
-	$self->{_dirtypage} = 1;
-	return $self;
-}
-
-=item B<fill> [evenodd => 1]
-
-Fills the current path with the current fillcolor. If a non-zero
-argument is provided, use the even-odd rule instead of the default
-non-zero winding rule.
+Fills the current path with the current fillcolor. The path is cleared
+unless you pass the preserve option. If a non-zero argument is
+provided, use the even-odd rule instead of the default non-zero
+winding rule.
 
 =cut
 
@@ -861,8 +841,32 @@ sub fill {
 	$self->{context}->set_source_rgb(_color($self->{_fill}));
 	my $current_fill = $self->{context}->get_fill_rule;
 	$self->{context}->set_fill_rule('even_odd') if $options{evenodd};
-	$self->{context}->fill;
+	if ($options{preserve}) {
+		$self->{context}->fill_preserve;
+	}else{
+		$self->{context}->fill;
+	}
 	$self->{context}->set_fill_rule($current_fill) if $options{evenodd};
+	$self->{_dirtypage} = 1;
+	return $self;
+}
+
+=item B<stroke> [preserve => 1]
+
+Strokes the current path with the current linewidth and strokecolor.
+The path is cleared unless you pass the preserve option.
+
+=cut
+
+sub stroke {
+	my $self = shift;
+	my %options = @_;
+	$self->{context}->set_source_rgb(_color($self->{_stroke}));
+	if ($options{preserve}) {
+		$self->{context}->stroke_preserve;
+	}else{
+		$self->{context}->stroke;
+	}
 	$self->{_dirtypage} = 1;
 	return $self;
 }
@@ -891,10 +895,34 @@ sub fillstroke {
 	return $self;
 }
 
+=item B<strokefill> [evenodd => 1]
+
+Strokes and then fills the current path, exactly as if stroke() and
+fill() were called in order without clearing the path in between. If
+a non-zero argument is provided, use the even-odd rule instead of the
+default non-zero winding rule.
+
+=cut
+
+sub strokefill {
+	my $self = shift;
+	my %options = @_;
+	$options{evenodd} = $_[0] if @_ == 1;
+	$self->{context}->set_source_rgb(_color($self->{_stroke}));
+	$self->{context}->stroke_preserve;
+	$self->{context}->set_source_rgb(_color($self->{_fill}));
+	my $current_fill = $self->{context}->get_fill_rule;
+	$self->{context}->set_fill_rule('even_odd') if $options{evenodd};
+	$self->{context}->fill;
+	$self->{context}->set_fill_rule($current_fill) if $options{evenodd};
+	$self->{_dirtypage} = 1;
+	return $self;
+}
+
 =item B<clip> [evenodd => 1], [preserve => 1]
 
 Intersects the current path with the current clipping path. The path
-is cleared unless you pass the preserve=>1 option. If the evenodd
+is cleared unless you pass the preserve option. If the evenodd
 argument is passed, use the even-odd rule instead of the default
 non-zero winding rule.
 
@@ -1071,7 +1099,7 @@ sub loadimage {
 		my $fh;
 		my @convert = qw(convert -density 72);
 		if (!open($fh, '-|:raw', @convert, $file, 'png:-')) {
-			carp "loadimage($file): $!\n";
+			croak "loadimage($file): $!\n";
 		}
 		my $result = Cairo::ImageSurface->create_from_png_stream(
 			sub {
@@ -1085,7 +1113,7 @@ sub loadimage {
 		return $result;
 	}else{
 		my $result = Cairo::ImageSurface->create_from_png($file);
-		carp "loadimage($file) failed (not a PNG and convert not available?)"
+		croak "loadimage($file) failed (not a PNG and convert not available?)"
 			unless $result->status eq 'success';
 		return $result;
 	}
@@ -1156,9 +1184,41 @@ sub showimage {
 
 =back
 
-=head2 Advanced
+=head2 Advanced and Experimental
 
 =over 4
+
+=item B<loadsvg> $file|$string
+
+Create an object with recording() containing an SVG image rendered
+with L<Image::CairoSVG>, with the lower-left corner at (0,0). It can
+be rendered with place() as many times as you want.
+
+Note that Image::CairoSVG only supports path operators, and ignores
+filters, fonts, and text, so many complex SVG files will not render
+as expected.
+
+=cut
+
+# renders the SVG *twice*; first to find its bounding box, then
+# with the origin translated vertically so it matches the PDF
+# coordinate system.
+#
+sub loadsvg {
+	my $class = shift;
+	my $svg = shift;
+	my $rectmp = PDF::Cairo->recording(_unlimited => 1);
+	my $image = Image::CairoSVG->new (context => $rectmp->{context});
+	$image->render($svg);
+	my @ink = $rectmp->{surface}->ink_extents;
+
+	my $recording = PDF::Cairo->recording(width => $ink[2], height => $ink[3]);
+	$recording->translate(0, $ink[3]);
+	$image = Image::CairoSVG->new (context => $recording->{context});
+	$image->render($svg);
+	$recording->{surface}->flush;
+	return $recording;
+}
 
 =item B<path> ['move|line|curve|close', [$x, $y, ...], ...]
 
@@ -1227,37 +1287,7 @@ sub _getpath {
 	return @path;
 }
 
-=item B<recording> %options
-
-=over 4
-
-=item paper => $paper_size
-
-=item height => $Ypts
-
-=item width => $Xpts
-
-=item wide|landscape => 1
-
-=item tall|portrait => 1
-
-=back
-
-Creates a new PDF::Cairo recording object. You can draw on it
-normally, but can only access the results with replay(). Options are
-the same as new().
-
-=cut
-
-# Create a recording surface.
-# 
-sub recording {
-	my $class = shift;
-	my %options = @_;
-	return PDF::Cairo->new(_recording => 1, %options);
-}
-
-=item B<replay> $recording, $x,$y, %options
+=item B<place> $recording, $x,$y, %options
 
 =over 4
 
@@ -1271,7 +1301,7 @@ sub recording {
 
 =back
 
-Replays the recording object $recording with its lower-left corner at
+Places the recording object $recording with its lower-left corner at
 ($x,$y). If $width and $height are provided, the recording is clipped
 to that size before rendering. If $dx or $dy is provided, the
 recording will be offset by those amounts before rendering. This can
@@ -1279,10 +1309,10 @@ be used to do things like tile a large image across multiple pages.
 
 =cut
 
-sub replay {
+sub place {
 	my $self = shift;
 	my $recording = shift;
-	croak "PDF:Cairo::replay: first argument must be a recording object"
+	croak "PDF:Cairo::place: first argument must be a recording object"
 		unless defined $recording
 			and ref $recording->{surface} eq 'Cairo::RecordingSurface';
 	my $x = shift || 0;
@@ -1304,9 +1334,42 @@ sub replay {
 	return $self;
 }
 
+=item B<recording> %options
+
+=over 4
+
+=item paper => $paper_size
+
+=item height => $Ypts
+
+=item width => $Xpts
+
+=item wide|landscape => 1
+
+=item tall|portrait => 1
+
+=back
+
+Creates a new PDF::Cairo recording object. You can draw on it
+normally, but can only access the results with place(). Options are
+the same as new().
+
+=cut
+
+# Create a recording surface.
+# 
+sub recording {
+	my $class = shift;
+	my %options = @_;
+	return PDF::Cairo->new(_recording => 1, %options);
+}
+
 =back
 
 =head2 Utility Functions
+
+These are imported from L<PDF::Cairo::Util> so you don't have to
+explicitly use that module in every script.
 
 =over 4
 
@@ -1317,7 +1380,7 @@ Converts the arguments from centimeters to points. Importable.
 =cut
 
 sub cm {
-	return $_[0] / 2.54 * 72;
+	return PDF::Cairo::Util::cm(@_);
 }
 
 =item B<in> $inches
@@ -1327,7 +1390,7 @@ Converts the arguments from inches to points. Importable.
 =cut
 
 sub in {
-	return $_[0] * 72;
+	return PDF::Cairo::Util::in(@_);
 }
 
 =item B<mm> $millimeters
@@ -1337,7 +1400,7 @@ Converts the arguments from millimeters to points. Importable.
 =cut
 
 sub mm {
-	return $_[0] / 25.4 * 72;
+	return PDF::Cairo::Util::mm(@_);
 }
 
 =item B<paper_size> %options
@@ -1364,48 +1427,7 @@ The supported paper sizes are listed in L<PDF::Cairo::Papers>.
 # returns ($width, $height) in points
 #
 sub paper_size {
-	my $self = ref($_[0]) ? shift : {};
-	my %options = @_;
-	if (defined $options{width} and defined $options{height}) {
-		$self->{w} = $options{width};
-		$self->{h} = $options{height};
-		$self->{paper} = undef;
-		return ($self->{w}, $self->{h});
-	}
-	my $size = $options{paper};
-	$size =~ tr/A-Z/a-z/;
-	if (!defined $paper{$size}) {
-		carp "PDF::Cairo::paper_size: unknown size '$size'.\n";
-		return undef;
-	}
-	# process aliases
-	my $rotated = 0;
-	if (!ref $paper{$size}) {
-		my $tmp;
-		($size, $tmp) = split(/,/,$paper{$size});
-		$rotated = !$rotated if defined $tmp and $tmp eq 'rotated';
-	}
-	if ($rotated) {
-		$self->{w} = $paper{$size}->{h};
-		$self->{h} = $paper{$size}->{w};
-	}else{
-		$self->{w} = $paper{$size}->{w};
-		$self->{h} = $paper{$size}->{h};
-	}
-	if ($options{wide} or $options{landscape}) {
-		my $tmp = $self->{w};
-		if ($tmp < $self->{h}) {
-			$self->{w} = $self->{h};
-			$self->{h} = $tmp;
-		}
-	}elsif ($options{tall} or $options{portrait}) {
-		my $tmp = $self->{w};
-		if ($tmp > $self->{h}) {
-			$self->{w} = $self->{h};
-			$self->{h} = $tmp;
-		}
-	}
-	return ($self->{w}, $self->{h});
+	return PDF::Cairo::Util::paper_size(@_);
 }
 
 =item B<regular_polygon> $sides
@@ -1436,21 +1458,7 @@ Calling the polygon($cx, $cy, $radius, $sides) method is equivalent to:
 =cut
 
 sub regular_polygon {
-	use constant PI => 4 * atan2(1, 1);
-	my $sides = shift;
-	my $polygon = {};
-	my @points;
-	my $da = 2 * PI / $sides;
-	my $a = ($da - PI) / 2;
-	for my $side (1..$sides) {
-		push(@points, [cos($a), sin($a)]);
-		$a += $da;
-	}
-	$polygon->{points} = \@points;
-	$polygon->{radius} = 1;
-	$polygon->{edge} = 2 * sin(PI / $sides);
-	$polygon->{inradius} = cos(PI / $sides);
-	return $polygon;
+	return PDF::Cairo::Util::regular_polygon(@_);
 }
 
 =back
@@ -1628,6 +1636,8 @@ Sadly necessary, since I use it all the time with PDF::API2::Lite.
 sub _api2_print {
 	my $self = shift;
 	my ($font, $size, $x, $y, $rotation, $justification, @text) = @_;
+	croak "PDF::Cairo::print: requires text argument"
+		unless defined $text[0];
 	my $text = join(' ', @text);
 	$self->{context}->set_font_face($font->{face});
 	$self->{context}->set_font_size($size);
@@ -1695,12 +1705,12 @@ sub saveas {
 	if ($self->{_is_stream}) {
 		$self->{surface}->flush;
 		$self->{surface}->finish;
-		open(Out, '>:raw', $filename)
+		open(my $Out, '>:raw', $filename)
 			or die "$0: PDF::Cairo::saveas($filename): $!\n";
-		print Out $self->{_streamdata};
-		CORE::close(Out);
+		print $Out $self->{_streamdata};
+		CORE::close($Out);
 	}else{
-		carp "saveas() only works if you didn't set a filename in new()\n";
+		croak "saveas() only works if you didn't set a filename in new()\n";
 	}
 }
 
@@ -1729,8 +1739,7 @@ sub stringify {
 		$self->{surface}->finish;
 		return $self->{_streamdata};
 	}else{
-		carp "stringify() only works if you didn't set a filename in new()\n";
-		return undef;
+		croak "stringify() only works if you didn't set a filename in new()\n";
 	}
 }
 
@@ -1900,6 +1909,8 @@ sub _color {
 		my $l = int((length($color) - 1) / 3);
 		($r, $g, $b) = map(hex($_)/(16**$l - 1),
 			$color =~ /^#(.{$l})(.{$l})(.{$l})$/);
+	}elsif ($color =~ /^[0-9.]+$/) {
+		($r, $g, $b) = ($color, $color, $color);
 	}else{
 		$color =~ tr/A-Z/a-z/;
 		$color =~ tr/ //d;

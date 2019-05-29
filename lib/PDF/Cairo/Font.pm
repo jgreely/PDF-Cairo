@@ -1,5 +1,6 @@
 package PDF::Cairo::Font;
 
+use 5.016;
 use strict;
 use warnings;
 use Cairo;
@@ -72,13 +73,13 @@ BEGIN {
 	my $fctmp = `fc-match -V 2>&1` || '';
 
 	if ($fctmp =~ /^fontconfig/) {
-		open(In, "fc-list : file|");
+		open(my $In, "-|", "fc-list : file");
 		my %tmp;
-		while (<In>) {
+		while (<$In>) {
 			s|/[^/]+$||;
 			$tmp{$_}++;
 		}
-		close(In);
+		close($In);
 		@FONT_PATH = sort keys %tmp;
 	}
 	push(@FONT_PATH, ".");

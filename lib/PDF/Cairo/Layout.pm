@@ -4,6 +4,7 @@ package PDF::Cairo::Layout;
 
 =cut
 
+use 5.016;
 use utf8;
 use strict;
 use warnings;

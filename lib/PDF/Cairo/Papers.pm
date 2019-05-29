@@ -9,7 +9,6 @@ before lookup.
 
 =over 4
 
-=cut
 =item B<10x11>
 
 720pts x 792pts
@@ -655,7 +654,3 @@ before lookup.
 249pts x 326pts
 
 =back
-
-=cut
-
-1;

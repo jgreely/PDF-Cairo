@@ -1,7 +1,8 @@
-#!/usr/bin/env perl -CADS
+#!/usr/bin/env perl
 # create a progressive/gapless calendar, as per
 # http://wondermark.com/free-calendar-2019/
 
+use 5.016;
 use utf8;
 use strict;
 use warnings;

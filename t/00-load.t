@@ -13,7 +13,7 @@ BEGIN {
 
 diag( "Testing PDF::Cairo $PDF::Cairo::VERSION, Perl $], $^X" );
 
-ok(defined $PDF::Cairo::paper{b1}, 'papers.txt loaded successfully');
+ok(defined $PDF::Cairo::Util::paper{b1}, 'papers.txt loaded successfully');
 ok(defined $PDF::Cairo::rgb{dimgray}, 'rgb.txt loaded successfully');
 
 my $pdf = PDF::Cairo->new(

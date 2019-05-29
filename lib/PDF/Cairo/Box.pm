@@ -1,9 +1,13 @@
 package PDF::Cairo::Box;
 
+use 5.016;
 use strict;
 use warnings;
 use Carp;
-use PDF::Cairo qw(paper_size);
+use PDF::Cairo::Util qw(paper_size);
+
+our $VERSION = "1.00";
+$VERSION = eval $VERSION;
 
 =head1 NAME
 
@@ -19,7 +23,7 @@ paper, calendars, practice sheets, etc.
     my $page = PDF::Cairo::Box->new(paper => "a4");
     my $half = $page->fold;
     $half->shrink(36)->rotate;
-    $half->center($page);
+    $page->center($half);
     ...
 
 =head1 DESCRIPTION
@@ -291,11 +295,10 @@ Return a new copy of the current box.
 sub copy {
 	my ($self) = @_;
 	my $tmp = {};
-	no strict "refs";
 	foreach my $k (keys %$self) {
 		$tmp->{$k} = $self->{$k};
 	}
-	bless($tmp);
+	bless($tmp, ref $self);
 	return $tmp;
 }
 
@@ -380,8 +383,7 @@ sub grid {
 			$slice_w = $options{width};
 		}
 	}else{
-		carp "grid(): must supply both columns/width and rows/height";
-		return undef;
+		croak "grid(): must supply both columns/width and rows/height";
 	}
 	if (defined $options{rows}) {
 		$slice_h = $self->{h} / int($options{rows});
@@ -392,8 +394,7 @@ sub grid {
 			$slice_h = $options{height};
 		}
 	}else{
-		carp "grid(): must supply both columns/width and rows/height";
-		return undef;
+		croak "grid(): must supply both columns/width and rows/height";
 	}
 	my @result;
 	%options = (
@@ -554,8 +555,7 @@ sub split {
 		$box1->{y} = $self->{y} + $self->{h} - $height;
 		$box2->{h} = $self->{h} - $height;
 	}else{
-		carp "PDF::Cairo::Box::Split: must supply either height or width";
-		return undef;
+		croak "PDF::Cairo::Box::Split: must supply either height or width";
 	}
 	return ($box1, $box2);
 }
@@ -692,7 +692,7 @@ sub move {
 		$self->{x} = $_[0];
 		$self->{y} = $_[1];
 	}else{
-		return undef;
+		croak "PDF::Cairo::Box::move: missing arguments";
 	}
 	return $self;
 }
@@ -709,7 +709,7 @@ sub rel_move {
 		$self->{x} = defined $self->{x} ? $self->{x} + $_[0] : $_[0];
 		$self->{y} = defined $self->{y} ? $self->{y} + $_[1] : $_[1];
 	}else{
-		return undef;
+		croak "PDF::Cairo::Box::rel_move: missing arguments";
 	}
 	return $self;
 }
