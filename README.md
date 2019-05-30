@@ -31,6 +31,8 @@ the module name.
 
 * `PDF::Cairo::Box` -- manipulate rectangles for easy page layout.
 
+* `PDF::Cairo::Util` -- small library of useful functions
+
 ## Usage
 
 ```

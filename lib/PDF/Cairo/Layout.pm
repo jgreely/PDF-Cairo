@@ -11,9 +11,8 @@ use warnings;
 use Cairo;
 use Pango;
 
-our $VERSION = "1.00";
+our $VERSION = "1.01";
 $VERSION = eval $VERSION;
-
 =head1 NAME
 
 PDF::Cairo::Layout - wrapper for Pango layouts

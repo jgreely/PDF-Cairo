@@ -18,7 +18,7 @@ use Image::CairoSVG;
 use Module::Path 'module_path';
 use PDF::Cairo::Util;
 
-our $VERSION = "1.00";
+our $VERSION = "1.01";
 $VERSION = eval $VERSION;
 
 =head1 NAME
