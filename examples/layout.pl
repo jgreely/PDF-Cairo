@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# test of PDF::Cairo::Layout methods
+
 use utf8;
 use strict;
 use warnings;

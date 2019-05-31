@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# quick test of using textpath() method to load font outlines
+# as paths
+
 use strict;
 use warnings;
 use PDF::Cairo qw(in);

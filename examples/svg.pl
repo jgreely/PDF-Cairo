@@ -13,9 +13,20 @@ my $pdf = PDF::Cairo->new(
 	wide => 1,
 	file => 'svg.pdf',
 );
-$pdf->translate(in(1), in(4.5))->scale(0.5)->rotate(-45);
 
 my $file = $ARGV[0] || "data/treasure-map.svg";
 my $svg = PDF::Cairo->loadsvg($file);
-$pdf->place($svg);
+$pdf->place($svg, in(1), in(4.5),
+	scale => 0.5, 
+	rotate => -45,
+);
+
+$pdf->strokecolor("blue");
+$pdf->translate(in(1), in(4.5));
+$pdf->move(in(1), 0);
+$pdf->rel_line(- in(1), 0);
+$pdf->rel_line(0, in(1));
+$pdf->stroke;
+
 $pdf->write;
+exit;

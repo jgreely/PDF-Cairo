@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# draw regular polygons, test radius/inradius/edge options
+
 use strict;
 use warnings;
 use PDF::Cairo qw(in);

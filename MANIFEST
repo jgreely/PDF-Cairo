@@ -1,8 +1,13 @@
 Changes
+data/layout1.txt
+data/layout2.txt
+data/layout3.txt
 data/treasure-map.svg
 data/v04image002.png
+examples/README.md
 examples/box-slice.pl
 examples/calendar.pl		This example requires the DateTime module.
+examples/frontpage.pl
 examples/hexgrid.pl
 examples/images.pl
 examples/inkle-draft.pl

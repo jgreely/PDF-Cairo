@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# create a sheet of Japanese vertical-writing report paper.
+# create a sheet of kanji/kana practice paper.
 
 use strict;
 use warnings;

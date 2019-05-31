@@ -1042,7 +1042,7 @@ sub print {
 		$options{valign} ||= "baseline";
 		if ($options{valign} eq "center") {
 			$dy += $height / 2;
-		}elsif ($options{align} eq "top") {
+		}elsif ($options{valign} eq "top") {
 			$dy += $height;
 		}
 		if ($options{shift}) {
@@ -1123,6 +1123,12 @@ sub loadimage {
 
 =over 4
 
+=item align => 'left|center|right'
+
+=item valign => 'top|center|bottom'
+
+=item center => 1
+
 =item scale => $scale
 
 =item size => [ $width, $height ]
@@ -1164,8 +1170,10 @@ sub showimage {
 		$y_scale = $h / $image_surface->get_height;
 	}
 	my $height = $image_surface->get_height * $y_scale;
+	my $width = $image_surface->get_width * $x_scale;
 	$self->save;
 	$self->translate($x, $y + $height);
+
 	if (defined $options{rotate}) {
 		# calculate the rotated position of lower-left corner and
 		# translate the origin so that the rotation comes from there.
@@ -1173,6 +1181,31 @@ sub showimage {
 		$self->translate($height * sin($a), $height * (cos($a) - 1));
 		$self->rotate($options{rotate});
 	}
+
+	# align image to other than bottom-left
+	# this must happen after rotation but before scaling
+	my ($tx, $ty) = (0, 0);
+	if ($options{center}) {
+		$options{align} = "center";
+		$options{valign} = "center";
+	}
+	$options{align} ||= "left";
+	if ($options{align} eq "center") {
+		$tx = - $width / 2;
+	}elsif ($options{align} eq "right") {
+		$tx = - $width;
+	}
+	$options{valign} ||= "bottom";
+	if ($options{valign} eq "center") {
+		$ty = $height / 2;
+	}elsif ($options{valign} eq "top") {
+		$ty = $height;
+	}
+	if ($tx or $ty) {
+		my ($x, $y) = $self->{context}->get_current_point;
+		$self->{context}->translate($tx, $ty);
+	}
+
 	if ($x_scale != 1 or $y_scale != 1) {
 		$self->scale($x_scale, $y_scale);
 	}
@@ -1297,6 +1330,12 @@ sub _getpath {
 
 =item dy => $offset_y
 
+=item align => 'left|center|right'
+
+=item valign => 'top|center|bottom'
+
+=item center => 1
+
 =item scale => $scale
 
 =item size => [ $width, $height ]
@@ -1327,9 +1366,12 @@ sub place {
 	my $recording = shift;
 	croak "PDF:Cairo::place: first argument must be a recording object"
 		unless ref $recording->{surface} eq 'Cairo::RecordingSurface';
+	my $width = $recording->{w};
+	my $height = $recording->{h};
 	my $x = shift || 0;
 	my $y = shift || 0;
 	my %options = @_;
+
 	my $dx = defined $options{dx} ? $options{dx} : 0;
 	my $dy = defined $options{dy} ? $options{dy} : 0;
 	my ($x_scale, $y_scale) = (1, 1);
@@ -1345,14 +1387,39 @@ sub place {
 	}
 	if ($options{size}) {
 		my ($w, $h) = @{$options{size}};
-		$x_scale = $w / $recording->{w};
-		$y_scale = $h / $recording->{h};
+		$x_scale = $w / $width;
+		$y_scale = $h / $height;
 	}
 	$self->save;
 	$self->translate($x, $y) if $x or $y;
 	if (defined $options{rotate}) {
 		$self->rotate($options{rotate});
 	}
+
+	# align image to other than bottom-left
+	# this must happen after rotation but before scaling
+	my ($tx, $ty) = (0, 0);
+	if ($options{center}) {
+		$options{align} = "center";
+		$options{valign} = "center";
+	}
+	$options{align} ||= "left";
+	if ($options{align} eq "center") {
+		$tx = - $width * $x_scale / 2;
+	}elsif ($options{align} eq "right") {
+		$tx = - $width * $x_scale;
+	}
+	$options{valign} ||= "bottom";
+	if ($options{valign} eq "center") {
+		$ty = $height * $y_scale / 2;
+	}elsif ($options{valign} eq "top") {
+		$ty = $height * $y_scale;
+	}
+	if ($tx or $ty) {
+		my ($x, $y) = $self->{context}->get_current_point;
+		$self->{context}->translate($tx, $ty);
+	}
+
 	if ($x_scale != 1 or $y_scale != 1) {
 		$self->scale($x_scale, $y_scale);
 	}

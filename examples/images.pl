@@ -1,5 +1,7 @@
 #!/usr/bin/env perl
 
+# test of showimage() scale/rotation options
+
 use strict;
 use warnings;
 use PDF::API2::Lite;
@@ -18,7 +20,6 @@ $pdf->strokecolor("blue");
 $pdf->move(in(2), in(1));
 $pdf->rel_line(- in(1), 0);
 $pdf->rel_line(0, in(1));
-$pdf->stroke;
 $pdf->stroke;
 
 $pdf->save;
