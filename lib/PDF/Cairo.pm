@@ -1164,7 +1164,7 @@ sub showimage {
 		$y_scale = $h / $image_surface->get_height;
 	}
 	my $height = $image_surface->get_height * $y_scale;
-	my $tmp = $self->{context}->get_matrix;
+	$self->save;
 	$self->translate($x, $y + $height);
 	if (defined $options{rotate}) {
 		# calculate the rotated position of lower-left corner and
@@ -1178,7 +1178,7 @@ sub showimage {
 	}
 	$self->{context}->set_source_surface($image_surface, 0, 0);
 	$self->{context}->paint;
-	$self->{context}->set_matrix($tmp);
+	$self->restore;
 	return $self;
 }
 
