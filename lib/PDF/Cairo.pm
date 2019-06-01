@@ -1084,8 +1084,9 @@ sub textpath {
 
 =item B<loadimage> $file
 
-Load a PNG-format image from $file. Returns a Cairo image surface
-that can be placed any number of times with showimage().
+Load a PNG-format image from $file. Returns a Cairo image surface that
+can be placed any number of times with showimage(); height() and
+width() methods are available to determine appropriate scaling values.
 
 If L<ImageMagick|https://imagemagick.org/>'s F<convert> command is
 available, it will be used to convert other image formats into PNG.
@@ -1453,7 +1454,8 @@ sub place {
 
 Creates a new PDF::Cairo recording object. You can draw on it
 normally, but can only access the results with place(). Options are
-the same as new().
+the same as new(). height() and width() methods are available to
+determine appropriate scaling values.
 
 =cut
 
@@ -2001,7 +2003,6 @@ sub textend {
 # internal functions
 
 # convert color names and hex numbers to floating-point RGB
-# TODO: support RGBA as well.
 #
 sub _color {
 	my ($color) = @_;
@@ -2140,5 +2141,31 @@ This is free software, licensed under:
   MIT License
 
 =cut
+
+# quick hack to add width/height methods to images and recordings
+#
+package Cairo::ImageSurface;
+
+sub height {
+	my $self = shift;
+	$self->get_height;
+}
+
+sub width {
+	my $self = shift;
+	$self->get_width;
+}
+
+package Cairo::RecordingSurface;
+
+sub height {
+	my $self = shift;
+	$self->{h};
+}
+
+sub width {
+	my $self = shift;
+	$self->{w};
+}
 
 1; # End of PDF::Cairo

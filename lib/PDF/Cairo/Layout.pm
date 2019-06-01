@@ -100,19 +100,52 @@ BEGIN {
 
 =item B<new> $pdf_cairo_ref, %options
 
-Create a new layout. The first argument must be a L<PDF::Cairo> object,
-in order for Pango to locate the Cairo context.
+=over 4
+
+=item alignment => 'left|center|right'
+
+=item ellipsize => 'none|start|middle|end'
+
+=item height => $height
+
+=item indent => $indent
+
+=item justify => 1|0
+
+=item size => [$width, $height]
+
+=item spacing => $spacing
+
+=item tabs => [tab1,...]
+
+=item width => $width
+
+=item wrap => 'word|char|word-char'
+
+Create a new layout. The first argument must be a L<PDF::Cairo>
+object, in order for Pango to locate the Cairo context. Options behave
+the same as the methods below, except that an array reference must be
+passed for size and tabs.
 
 =cut
 
 sub new {
 	my $class = shift;
 	my $pcref = shift;
+	my %options = @_;
 	my $self = {
 		_context => $pcref->{context},
 	};
 	$self->{_layout} = Pango::Cairo::create_layout($pcref->{context});
 	bless($self, $class);
+	foreach my $key (sort keys %options) {
+		if (ref $options{$key} eq 'ARRAY') {
+			$self->$key(@{$options{$key}});
+		}else{
+			$self->$key($options{$key});
+		}
+	}
+	return $self;
 }
 
 =item B<alignment> ['left|center|right']
@@ -144,7 +177,7 @@ sub baseline {
 	return -1 * $self->{_layout}->get_baseline / 1024;
 }
 
-=item B<ellipsize> ['none','start','middle','end']
+=item B<ellipsize> ['none|start|middle|end']
 
 Get/set the ellipsis settings for the current layout.
 
@@ -208,8 +241,17 @@ sub indent {
 
 Returns the ink extents of the current layout as a hash reference
 containing the scalars x, y, width, height, and the array reference
-bbox containing all four in that order. (x,y) is the offset from the
-upper-left corner of the layout, and height is negative.
+bbox containing all four in that order with the height negated to
+reflect that (x,y) is the offset from the upper-left corner of the
+layout:
+
+    {
+      x => $x,
+      y => $y,
+      width => $width,
+      height => $height,
+      bbox => [$x, $y, $width, -$height],
+    }
 
 Note that a trailing newline in the markup will count as extra "ink".
 
@@ -219,8 +261,7 @@ sub ink {
 	my $self = shift;
 	my ($ink, $logical) = $self->{_layout}->get_pixel_extents;
 	$ink->{y} *= -1;
-	$ink->{height} *= -1;
-	$ink->{bbox} = [ $ink->{x}, $ink->{y}, $ink->{width}, $ink->{height} ];
+	$ink->{bbox} = [ $ink->{x}, $ink->{y}, $ink->{width}, - $ink->{height} ];
 	return $ink;
 }
 
