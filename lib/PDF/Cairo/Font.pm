@@ -6,7 +6,7 @@ use warnings;
 use Cairo;
 use Font::FreeType;
 
-our $VERSION = "1.01";
+our $VERSION = "1.02";
 $VERSION = eval $VERSION;
 
 =head1 NAME

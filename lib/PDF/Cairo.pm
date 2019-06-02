@@ -18,7 +18,7 @@ use Image::CairoSVG;
 use Module::Path 'module_path';
 use PDF::Cairo::Util;
 
-our $VERSION = "1.01";
+our $VERSION = "1.02";
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -216,6 +216,7 @@ sub newpage {
 		$self->{surface}->set_size($self->{w}, $self->{h});
 	}
 	_setup_page_state($self);
+	return $self;
 }
 
 =item B<write> [$file]
@@ -1572,7 +1573,8 @@ sub regular_polygon {
 
 =item B<addFontDirs> $directory, ...
 
-Append one or more directories to the font search path.
+Append one or more directories to the font search path. Returns
+the current font path.
 
 =cut
 
@@ -1792,7 +1794,6 @@ Alias for restore().
 
 sub restorestate {
 	restore(@_);
-	return $_[0];
 }
 
 =item B<saveas> $file
@@ -1825,7 +1826,6 @@ Alias for save().
 
 sub savestate {
 	save(@_);
-	return $_[0];
 }
 
 =item B<stringify>
