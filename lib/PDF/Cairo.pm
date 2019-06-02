@@ -18,7 +18,7 @@ use Image::CairoSVG;
 use Module::Path 'module_path';
 use PDF::Cairo::Util;
 
-our $VERSION = "1.02";
+our $VERSION = "1.03";
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -2144,26 +2144,19 @@ This is free software, licensed under:
 
 # quick hack to add width/height methods to images and recordings
 #
-package Cairo::ImageSurface;
-
-sub height {
+sub Cairo::ImageSurface::height {
 	my $self = shift;
 	$self->get_height;
 }
-
-sub width {
+sub Cairo::ImageSurface::width {
 	my $self = shift;
 	$self->get_width;
 }
-
-package Cairo::RecordingSurface;
-
-sub height {
+sub Cairo::RecordingSurface::height {
 	my $self = shift;
 	$self->{h};
 }
-
-sub width {
+sub Cairo::RecordingSurface::width {
 	my $self = shift;
 	$self->{w};
 }

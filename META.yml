@@ -25,5 +25,5 @@ requires:
   Module::Path: '0.19'
   Pango: '1.227'
   perl: '5.016'
-version: '1.02'
+version: '1.03'
 x_serialization_backend: 'CPAN::Meta::YAML version 0.018'
