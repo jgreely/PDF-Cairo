@@ -122,6 +122,8 @@ BEGIN {
 
 =item wrap => 'word|char|word-char'
 
+=back
+
 Create a new layout. The first argument must be a L<PDF::Cairo>
 object, in order for Pango to locate the Cairo context. Options behave
 the same as the methods below, except that an array reference must be

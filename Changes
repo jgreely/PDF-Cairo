@@ -1,6 +1,9 @@
 Revision history for PDF-Cairo
 
-1.02    2019/06/02 15:15 PDT
+1.03    2019/06/02 00:30 PDT
+        work around aggressive PAUSE indexing for CPAN.
+
+1.02    2019/06/01 14:44 PDT
         bugfix: showimage() needs full save/restore, not just matrix
         bugfix: print() valign typo
         bugfix: make layout ink height positive (bbox height remains negative)

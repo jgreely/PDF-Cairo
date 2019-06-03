@@ -25,6 +25,16 @@ my %WriteMakefileArgs = (
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'PDF-Cairo-*' },
+    META_MERGE => {
+        'meta-spec' => { version => 2 },
+         resources => {
+             repository => {
+                 type => 'git',
+                 url  => 'https://github.com/jgreely/PDF-Cairo.git',
+                 web  => 'https://github.com/jgreely/PDF-Cairo',
+             },
+         },
+    },
 );
 
 # Compatibility with old versions of ExtUtils::MakeMaker

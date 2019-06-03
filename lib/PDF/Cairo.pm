@@ -2053,6 +2053,11 @@ sub _setup_page_state {
 
 =over 4
 
+=item * libcairo version must be 1.10.0 or greater to support
+recording surfaces, which this module makes extensive use of. Future
+versions will require 1.16.0 or greater to support metadata, outlines,
+hyperlinks, page labels, etc.
+
 =item * The fillcolor/strokecolor methods do not currently support the
 various %cmyk, &hsl, !hsv options for setting color values. (TODO)
 

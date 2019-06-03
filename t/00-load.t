@@ -5,6 +5,16 @@ use warnings;
 use Test::More;
 
 BEGIN {
+    use_ok( 'Cairo' ) || print "No Cairo!\n";
+    use_ok( 'Pango' ) || print "No Pango!\n";
+    use_ok( 'Font::FreeType' ) || print "No Font::FreeType!\n";
+    # need this to debug CPAN test failures
+    diag ( "\nLibrary versions linked against: " );
+    diag ( "  cairo: " . Cairo->lib_version_string );
+    diag ( "  pango: " . join(".", Pango->GET_VERSION_INFO) );
+    diag ( "  freetype: " . Font::FreeType->new->version() );
+    ok (Cairo->lib_version >= Cairo->LIB_VERSION_ENCODE(1,10,0),
+        'libcairo new enough to support recording surfaces');
     use_ok( 'PDF::Cairo' ) || print "Bail out!\n";
     use_ok( 'PDF::Cairo::Box' ) || print "Bail out!\n";
     use_ok( 'PDF::Cairo::Font' ) || print "Bail out!\n";
