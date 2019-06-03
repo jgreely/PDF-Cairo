@@ -1227,7 +1227,8 @@ sub showimage {
 
 Create an object with recording() containing an SVG image rendered
 with L<Image::CairoSVG>, with the lower-left corner at (0,0). It can
-be rendered with place() as many times as you want.
+be rendered with place() as many times as you want. height() and
+width() methods are available to determine appropriate scaling values.
 
 Note that Image::CairoSVG only supports path operators, and ignores
 filters, fonts, and text, so many complex SVG files will not render
@@ -1466,6 +1467,17 @@ sub recording {
 	my $class = shift;
 	my %options = @_;
 	return PDF::Cairo->new(_recording => 1, %options);
+}
+
+#only really useful for recording/svg surfaces, so otherwise not documented
+#
+sub height {
+	my $self = shift;
+	return $self->{h};
+}
+sub width {
+	my $self = shift;
+	return $self->{w};
 }
 
 =back
@@ -2156,14 +2168,6 @@ sub Cairo::ImageSurface::height {
 sub Cairo::ImageSurface::width {
 	my $self = shift;
 	$self->get_width;
-}
-sub Cairo::RecordingSurface::height {
-	my $self = shift;
-	$self->{h};
-}
-sub Cairo::RecordingSurface::width {
-	my $self = shift;
-	$self->{w};
 }
 
 1; # End of PDF::Cairo
