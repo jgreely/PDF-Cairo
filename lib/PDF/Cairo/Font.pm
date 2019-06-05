@@ -151,10 +151,10 @@ sub new {
 	$self->{type} = "freetype";
 	$pcref->{_freetype} = Font::FreeType->new
 		unless ref $pcref->{_freetype};
-    my $ft_face = $pcref->{_freetype}->face(
+	my $ft_face = $pcref->{_freetype}->face(
 		$font[0],
-           load_flags => FT_LOAD_NO_HINTING,
-           index => $collection_index,
+			load_flags => FT_LOAD_NO_HINTING,
+			index => $collection_index,
 	);
 	if ($metrics_file) {
 		$ft_face->attach_file($metrics_file);
@@ -168,7 +168,7 @@ sub new {
 		freetype => $pcref->{_freetype},
 		face => $ft_face,
 	};
-    $self->{face} = Cairo::FtFontFace->create($ft_face);
+	$self->{face} = Cairo::FtFontFace->create($ft_face);
 
 	# no font file found? put *something* on the page...
 	if (! defined $self->{type}) {
