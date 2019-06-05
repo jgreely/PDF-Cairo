@@ -35,7 +35,8 @@ while (<$In>) {
 	my $indent = length($1);
 	if ($indent == 4) {
 		# ignore resource-fork PS fonts with no file extension
-		if ($currfont->{filename} and $currfont->{filename} =~ /^.+\./) {
+		if ($currfont->{filename} and $currfont->{filename} =~ /^.+\./
+				and $currfont->{location} !~ m(/Library/Fonts/)) {
 			push(@fonts, $currfont);
 		}
 		s/:\s*$//;
@@ -77,12 +78,63 @@ foreach my $file (sort { $a->{filename} cmp $b->{filename} } @fonts) {
 	my $filename = $file->{filename};
 	$filename =~ s/^\.//; # Adobe Typekit fonts have leading "."
 	symlink($file->{location}, "$NAME-new/$filename");
-	my $index = 0;
-	foreach my $font (@{$file->{fonts}}) {
-		my $i = $index > 0 ? ",$index" : "";
-		print $Out join("\t", $file->{filename} . $i, $font->{full_name},
+	if (@{$file->{fonts}} == 1) {	
+		my $font = $file->{fonts}->[0];
+		print $Out join("\t", $file->{filename}, $font->{full_name},
 			$font->{family}, $font->{style}), "\n";
-		$index++;
+	}else{
+		# system_profiler does not report the contents of
+		# a multi-font container in index order. For more
+		# fun, Apple ships multi-font files with a .ttf
+		# extension, where the index values are byte offsets
+		# (ex: /Library/Fonts/Skia.ttf)
+		open(my $In, "-|", qq(fc-scan -f '%{index}\t%{fullname}\t%{family}\t%{style}\t%{fullnamelang}\t%{familylang}\t%{stylelang}\n' $file->{location}));
+		my @tmp;
+		while (<$In>) {
+			chomp;
+			my ($index, $fullname, $family, $style, $fullnamelang, $familylang, $stylelang) = split(/\t/);
+			# try to find the English names...
+			if ($fullname =~ /,/) {
+				my $i = 0;
+				foreach my $lang (split(/,/, $fullnamelang)) {
+					last if $lang eq 'en';
+					$i++;
+				}
+				my @tmp = split(/,/, $fullname);
+				$fullname = $tmp[$i];
+			}
+			if ($family =~ /,/) {
+				my $i = 0;
+				foreach my $lang (split(/,/, $familylang)) {
+					last if $lang eq 'en';
+					$i++;
+				}
+				my @tmp = split(/,/, $family);
+				$family = $tmp[$i];
+			}
+			if ($style =~ /,/) {
+				my $i = 0;
+				foreach my $lang (split(/,/, $stylelang)) {
+					last if $lang eq 'en';
+					$i++;
+				}
+				my @tmp = split(/,/, $style);
+				$style = $tmp[$i];
+			}
+			push(@tmp, {
+				index => $index,
+				full_name => $fullname,
+				family => $family || "",
+				style => $style || "",
+			});
+		}
+		close($In);
+		foreach my $font (sort { $a->{index} <=> $b->{index}} @tmp) {
+			print $Out $file->{filename};
+			print $Out "," . $font->{index} if $font->{index} > 0;
+			print $Out "\t", join("\t", $font->{full_name},
+				$font->{family}, $font->{style}), "\n";
+		}
 	}
 }
 close($Out);
