@@ -4,6 +4,8 @@ author:
   - 'J Greely <jgreely@cpan.org>'
 build_requires:
   ExtUtils::MakeMaker: '0'
+  File::Compare: '0'
+  File::Temp: '0'
   Test::More: '0'
 configure_requires:
   ExtUtils::MakeMaker: '0'

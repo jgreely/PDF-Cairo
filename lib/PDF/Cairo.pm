@@ -1020,6 +1020,8 @@ the first argument is a font reference, the PDF::API2::Lite
 compatibility version of print() will be used instead.
 
 The current position will be moved to the end of the displayed text.
+Any vertical shift will not affect the baseline of subsequent calls
+to print().
 
 =cut
 
@@ -1046,15 +1048,16 @@ sub print {
 		}elsif ($options{valign} eq "top") {
 			$dy += $height;
 		}
-		if ($options{shift}) {
-			$dy += $options{shift};
-		}
 		if ($dx or $dy) {
 			my ($x, $y) = $self->{context}->get_current_point;
 			$self->{context}->move_to($x + $dx, $y + $dy);
 		}
-		$self->{context}->set_source_rgb(@{$rgb{$self->{_fill}}->{float}});
+		$self->{context}->set_source_rgb(_color($self->{_fill}));
+		$self->rel_move(0, $options{shift})
+			if $options{shift};
 		$self->{context}->show_text($text);
+		$self->rel_move(0, -$options{shift})
+			if $options{shift};
 		# note this leaves the current point offset by the alignment
 		# which means calling print() again without moving first
 		# will match the baseline. I think this is a feature.
@@ -1767,7 +1770,7 @@ sub _api2_print {
 	$self->move($x, $y);
 	my $tmp = $self->{context}->get_matrix;
 	$self->rotate($rotation);
-	$self->{context}->set_source_rgb(@{$rgb{$self->{_fill}}->{float}});
+	$self->{context}->set_source_rgb(_color($self->{_fill}));
 	$self->{context}->show_text($text);
 	$self->{context}->set_matrix($tmp);
 	$self->{_dirtypage} = 1;

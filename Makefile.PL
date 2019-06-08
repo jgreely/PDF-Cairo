@@ -15,6 +15,8 @@ my %WriteMakefileArgs = (
     },
     TEST_REQUIRES => {
         'Test::More' => '0',
+        'File::Temp' => '0',
+        'File::Compare' => '0',
     },
     PREREQ_PM => {
 		'Cairo'				=> '1.106',
