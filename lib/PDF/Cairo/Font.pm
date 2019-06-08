@@ -3,6 +3,7 @@ package PDF::Cairo::Font;
 use 5.016;
 use strict;
 use warnings;
+use Carp;
 use Cairo;
 use Font::FreeType;
 
@@ -102,7 +103,7 @@ sub new {
 	my $pcref = shift;
 	my @font = split(/,/,shift);
 	my $self = {};
-	my $type;
+	my $type = '';
 	if (index($font[0], '.') == -1) {
 		@font = find_api2font(@font);
 	}
@@ -116,6 +117,10 @@ sub new {
 					last;
 				}
 			}
+		}
+		if (! -f $font[0]) {
+			carp("PDF::Cairo::Font::new: '$font[0]' not found, going generic");
+			@font = find_api2font('Times');
 		}
 	}
 	my $collection_index = 0;

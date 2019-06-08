@@ -80,12 +80,16 @@ $pdf->polygon(0, 0, in(0.5), 12, edge => 1);
 $pdf->fill;
 $pdf->newpage;
 
-# TODO: add tests for:
-# linecap
-# line
-# rel_poly
-# rel_rect
-#
+push(@test_desc, "misc: linecap, line, rel_poly, rel_rect");
+$pdf->linewidth(4);
+$pdf->move(10, 10)->line(100, 10)->stroke;
+$pdf->linecap('round');
+$pdf->move(10, 20)->line(100, 20)->stroke;
+$pdf->linecap('square');
+$pdf->move(10, 30)->line(100, 30)->stroke;
+$pdf->move(10, 40)->rel_rect(10, 10, 80, 20)->fill;
+$pdf->move(10, 80)->rel_poly(10,10, 80,0, 0,20, -80,0, 0,-20)->close->stroke;
+$pdf->newpage;
 
 push(@test_desc, "simple text");
 my $font1 = $pdf->loadfont("data/Karla-Regular.ttf");
@@ -126,19 +130,48 @@ $pdf->move(20, 60);
 $pdf->print("A")->print("B", shift => 2)->print("A")->print("B", shift => -2);
 $pdf->newpage;
 
-# TODO:
-# (use bundled image v04image002.png)
-# loadimage/showimage (align/valign/center/scale/rotate/size)
-#   (again with manual translate/rotate/scale)
-#
-# (use bundled svg treasure-map.svg)
-# loadsvg/place (clip/dx/dy/align/valign/center/scale/size/rotate)
-#   (again with manual translate/rotate/scale)
-#
-# recording/place (multiple times at different scale/rotate/align)
-#
-# newpage with different sizes
+push(@test_desc, "loadimage/showimage");
+my $image = $pdf->loadimage("data/v04image002.png");
+$pdf->showimage($image, $page->xy, scale => 0.04);
+$pdf->showimage($image, $page->x + $page->width, $page->y,
+	scale => 0.04, align => 'right');
+$pdf->showimage($image, $page->x, $page->y + $page->height,
+	scale => 0.04, valign => 'top');
+$pdf->showimage($image, $page->x + $page->width, $page->y + $page->height,
+	scale => 0.04, align => 'right', valign => 'top');
+$pdf->showimage($image, $page->cxy, x_scale => 0.04, y_scale => 0.1,
+	center => 1, rotate => 180);
+$pdf->newpage;
 
+push(@test_desc, "loadsvg/place");
+my $svg = $pdf->loadsvg("data/treasure-map.svg");
+$pdf->place($svg, $page->xy, scale => 0.08);
+$pdf->place($svg, $page->x + $page->width, $page->y,
+	scale => 0.08, align => 'right');
+$pdf->place($svg, $page->x, $page->y + $page->height,
+	scale => 0.08, valign => 'top');
+$pdf->place($svg, $page->x + $page->width, $page->y + $page->height,
+	scale => 0.08, align => 'right', valign => 'top');
+$pdf->place($svg, $page->cxy, x_scale => 0.08, y_scale => 0.2,
+	center => 1, rotate => 180);
+$pdf->newpage(width => in(5), height => in(3)); # new size, for next test
+
+push(@test_desc, "page size: 3x5");
+$pdf->setfont($font1, 44);
+$pdf->move(in(0.5), in(2.5));
+$pdf->fillcolor('orange');
+$pdf->print("3x5-inch page");
+$pdf->newpage(paper => 'b7');
+push(@test_desc, "page size: b7");
+$page = $pdf->pagebox;
+$pdf->move(in(0.5), $page->height - in(0.5));
+$pdf->print("b7 page");
+$pdf->newpage;
+push(@test_desc, "page size: remains b7");
+$pdf->fillcolor('green');
+$pdf->move(in(0.5), $page->height - in(0.5));
+$pdf->print("still b7");
+$pdf->newpage(width => in(2), height => in(2));
 
 $pdf->write;
 ok(-s $OUT, "wrote PDF to disk?");
@@ -154,6 +187,7 @@ SKIP: {
 	system("$PDFTOCAIRO t/02-cairo.pdf $TMP/ref");
 	system("$PDFTOCAIRO $OUT $TMP/02");
 	foreach my $i (1..@test_desc) {
+		$i = sprintf("%02d", $i);
 		my $test = "page $i: " . shift(@test_desc);
 		subtest $test => sub {
 			plan tests => 3;
