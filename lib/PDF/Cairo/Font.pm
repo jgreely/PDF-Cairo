@@ -7,7 +7,7 @@ use Carp;
 use Cairo;
 use Font::FreeType;
 
-our $VERSION = "1.03";
+our $VERSION = "1.04";
 $VERSION = eval $VERSION;
 
 =head1 NAME
