@@ -183,7 +183,7 @@ SKIP: {
 	my $tmp = `pdftocairo -v 2>&1` || '';
 	skip("need poppler's pdftocairo to compare images")
 		unless $tmp =~ /pdftocairo/;
-	my $PDFTOCAIRO = "pdftocairo -png -r 200 -antialias gray";
+	my $PDFTOCAIRO = "pdftocairo -png -r 200";
 	system("$PDFTOCAIRO t/02-cairo.pdf $TMP/ref");
 	system("$PDFTOCAIRO $OUT $TMP/02");
 	foreach my $i (1..@test_desc) {
