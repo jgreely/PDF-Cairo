@@ -1020,15 +1020,16 @@ sub loadfont {
 	return PDF::Cairo::Font->new($self, $face);
 }
 
-=item B<setfont> $fontref, $size
+=item B<setfont> $fontref, [$size]
 
-Set the current font and size.
+Set the current font and size. Default size is 1 point.
 
 =cut
 
 sub setfont {
 	my $self = shift;
 	my ($font, $size) = @_;
+	$size ||= 1;
 	$self->{context}->set_font_face($font->{face})
 		if ref $font and $font->{face} ne $self->{context}->get_font_face;
 	$self->{context}->set_font_size($size);
@@ -1058,6 +1059,8 @@ sub setfontsize {
 
 =item shift => $vertical_shift
 
+=item center => 1
+
 =back
 
 Display text at current position, with current font and fillcolor. If
@@ -1076,21 +1079,24 @@ sub print {
 		$self->_api2_print(@_);
 	}else{
 		my ($text, %options) = @_;
-		my $extents = $self->{context}->text_extents($text);
-		my $width = $extents->{width};
-		my $height = $extents->{height};
-		my $x_bearing = $extents->{x_bearing};
+		my $extents = $self->extents($text);
+		my $width = $extents->width;
+		my $height = $extents->height;
 		my ($dx, $dy) = (0, 0);
 		$options{align} ||= "left";
+		if ($options{center}) {
+			$options{align} = 'center';
+			$options{valign} = 'center';
+		}
 		if ($options{align} eq "center") {
-			$dx -= $width / 2 + $x_bearing;
+			$dx -= $width / 2 + $extents->x;
 		}elsif ($options{align} eq "right") {
 			$dx -= $width;
 		}
 		# TODO: add "bottom", distinct from default baseline
 		$options{valign} ||= "baseline";
 		if ($options{valign} eq "center") {
-			$dy += $height / 2;
+			$dy += $height / 2 + $extents->y;
 		}elsif ($options{valign} eq "top") {
 			$dy += $height;
 		}
@@ -1110,6 +1116,47 @@ sub print {
 	}
 	$self->{_dirtypage} = 1;
 	return $self;
+}
+
+=item B<autosize> $text, $box
+
+Set the size of the current font to the largest value that allows
+$text to fit inside of the specified PDF::Cairo::Box object.
+
+=cut
+
+sub autosize {
+	my $self = shift;
+	my ($text, $box) = @_;
+	croak "PDF::Cairo::autosize: requires a PDF::Cairo::Box object"
+		unless ref $box eq 'PDF::Cairo::Box';
+	$self->setfontsize($box->height);
+	my $extents = $self->extents($text);
+	$self->setfontsize($box->height * $box->width / $extents->width)
+		if $extents->width > $box->width;
+	return $self;
+}
+
+=item B<extents> $text
+
+Returns a L<PDF::Cairo::Box> object containing the ink extents
+of $text as it would be rendered with the current font/size.
+
+=cut
+
+sub extents {
+	my $self = shift;
+	my $text = shift;
+	croak "PDF::Cairo::extents: requires text string as argument"
+		unless defined $text;
+	my $extents = $self->{context}->text_extents($text);
+	my $box = PDF::Cairo::Box->new(
+		width => $extents->{width},
+		height => $extents->{height},
+		x => $extents->{x_bearing},
+		y => -($extents->{y_bearing} + $extents->{height}),
+	);
+	return $box;
 }
 
 =item B<textpath> $text
