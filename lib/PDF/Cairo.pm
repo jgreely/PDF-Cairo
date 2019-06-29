@@ -806,17 +806,62 @@ array reference.
 
 sub rel_rect {
 	my $self = shift;
-	my ($dx, $dy, $w, $h) = @_;
-	($dx, $dy, $w, $h) = @$dx if ref $dx eq 'ARRAY';
-	if ($self->{context}->has_current_point) {
-		my $tmp = $self->{context}->get_matrix;
-		my ($x, $y) = $self->{context}->get_current_point;
-		$self->translate($x, - $y);
-		$self->rect($dx, $dy, $w, $h);
-		$self->{context}->set_matrix($tmp);
-	}else{
-		croak "PDF::Cairo::rel_rect: no current point";
+	croak "PDF::Cairo::rel_rect: no current point"
+		unless $self->{context}->has_current_point;
+	my $tmp = $self->{context}->get_matrix;
+	my ($x, $y) = $self->{context}->get_current_point;
+	$self->translate($x, - $y);
+	$self->rect(@_);
+	$self->{context}->set_matrix($tmp);
+	return $self;
+}
+
+=item B<roundrect> $x, $y, $width, $height, [$radius]
+
+Draws a rectangle starting at ($x, $y) with $width and $height,
+with corners rounded by $radius (defaults to 1/20th the length
+of the shortest side).
+
+=cut
+
+sub roundrect {
+	my $self = shift;
+	my ($x, $y, $w, $h, $r) = @_;
+	my $tmp = $w < $h ? $w : $h;
+	$r ||= $tmp / 20;
+	if ($r * 2 > $tmp) {
+		$r = $tmp / 2;
+		carp "PDF::Cairo::roundrect: Radius too large, reduced to $r";
 	}
+	$self->arc($x + $r, $y + $r,
+		$r, $r, -90, -180, 1);
+ 	$self->arc($x + $r, $y + $h - $r,
+		$r, $r, 180, 90);
+	$self->arc($x + $w - $r, $y + $h - $r,
+		$r, $r, 90, 0);
+	$self->arc($x + $w - $r, $y + $r,
+		$r, $r, 0, -90);
+	$self->close;
+	return $self;
+}
+
+=item B<rel_roundrect> $dx, $dy, $width, $height, [$radius]
+
+Draws a rectangle offset from the current point by ($dx, $dy), with
+$width and $height, with corners rounded by $radius (defaults to
+1/20th the length of the shortest side).
+
+=cut
+
+sub rel_roundrect {
+	my $self = shift;
+	croak "PDF::Cairo::rel_roundrect: no current point"
+		unless $self->{context}->has_current_point;
+	my $tmp = $self->{context}->get_matrix;
+	my ($x, $y) = $self->{context}->get_current_point;
+	$self->translate($x, - $y);
+	$self->roundrect(@_);
+	$self->{context}->set_matrix($tmp);
 	return $self;
 }
 
@@ -1034,10 +1079,11 @@ sub print {
 		my $extents = $self->{context}->text_extents($text);
 		my $width = $extents->{width};
 		my $height = $extents->{height};
+		my $x_bearing = $extents->{x_bearing};
 		my ($dx, $dy) = (0, 0);
 		$options{align} ||= "left";
 		if ($options{align} eq "center") {
-			$dx -= $width / 2;
+			$dx -= $width / 2 + $x_bearing;
 		}elsif ($options{align} eq "right") {
 			$dx -= $width;
 		}
@@ -1460,7 +1506,8 @@ sub place {
 Creates a new PDF::Cairo recording object. You can draw on it
 normally, but can only access the results with place(). Options are
 the same as new(). height() and width() methods are available to
-determine appropriate scaling values.
+determine appropriate scaling values. Recording surfaces are clipped
+to their size.
 
 =cut
 
@@ -1761,9 +1808,11 @@ sub _api2_print {
 	my $text = join(' ', @text);
 	$self->{context}->set_font_face($font->{face});
 	$self->{context}->set_font_size($size);
-	my $width = $self->{context}->text_extents($text)->{width};
+	my $extents = $self->{context}->text_extents($text);
+	my $width = $extents->{width};
+	my $x_bearing = $extents->{x_bearing};
 	if ($justification == 1) {
-		$x -= $width / 2;
+		$x -= $width / 2 + $x_bearing;
 	}elsif ($justification == 2) {
 		$x -= $width;
 	}

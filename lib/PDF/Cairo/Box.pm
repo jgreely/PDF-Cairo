@@ -22,7 +22,7 @@ paper, calendars, practice sheets, etc.
 
     my $page = PDF::Cairo::Box->new(paper => "a4");
     my $half = $page->fold;
-    $half->shrink(36)->rotate;
+    $half->shrink(all => 36)->rotate;
     $page->center($half);
     ...
 
